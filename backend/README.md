@@ -5,7 +5,7 @@ directory as a Maven project in IntelliJ IDEA. On Windows use `mvnw.cmd`.
 The server binds to http://127.0.0.1:8080.
 
 The persistent slice stores environments, operations, idempotency reservations,
-and audit events in PostgreSQL, with Flyway migrations applied on startup.
+and audit events in PostgreSQL, with Flyway migrations applied by a separate process.
 See the [API contract](../docs/api.md) for schemas and validation.
 An opt-in worker claims create and delete operations with PostgreSQL leases, provisions
 platform-owned namespaces and an approved sample Deployment in local kind,
@@ -24,38 +24,180 @@ rows. Unowned environments remain operator-managed; there is no ownership transf
 
 ## Run locally
 
-Docker with Compose and a nonempty local database password are required.
-From the repository root:
+Docker with Compose is required. This is the bounded disposable-target
+implementation, not production rollout or acceptance of the
+[proposed dispositions](../docs/decisions/db-role-separation-prerequisite-review.md).
+Before applying privileged SQL, confirm the target, accountable approver and
+independent bootstrap/recovery credential custody under that record. ADR statuses
+are unchanged. Do not apply this fresh-target bootstrap to an existing volume.
+
+### 1. Bootstrap a fresh disposable target
+
+From the repository root, use a new explicitly selected Compose project/volume
+(keep that project selected for **all** subsequent commands):
 
 ```sh
 cp .env.example .env
-# Edit .env and set POSTGRES_PASSWORD to a nonempty local-only value.
+# Set distinct POSTGRES_PASSWORD (administrator) and DB_PASSWORD (runtime) in
+# the ignored .env; restrict access with chmod 600 .env. Never source it.
+export COMPOSE_PROJECT_NAME=platform-role-split
 docker compose up -d --wait postgres
+docker compose exec postgres sh -c \
+  'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+```
 
-# Source only your trusted local .env: this executes shell code.
-set -a
-. ./.env
-set +a
-export DB_URL="jdbc:postgresql://127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}"
-export DB_USERNAME="$POSTGRES_USER"
-export DB_PASSWORD="$POSTGRES_PASSWORD"
+In this administrator-only interactive `psql` session:
 
+```sql
+\i /opt/platform-database/bootstrap.sql
+\password platform_migration
+\password platform_runtime
+ALTER ROLE platform_migration LOGIN;
+\q
+```
+
+Use distinct generated secrets from the approved credential store. `\password`
+prompts without putting plaintext in SQL history or process arguments. Set the
+runtime password to the runtime secret in `.env`. Bootstrap creates NOLOGIN,
+non-superuser roles; it rejects existing objects without explicit transition
+opt-in and always rejects existing role names.
+The administrator retains database ownership; `platform_migration` owns only
+the `public` schema and its migration-created objects. Neither login has role
+memberships, role administration, database `CREATE` or `TEMP`.
+
+### 2. Migrate independently, then close migration access
+
+Build the jar with `cd backend && ./mvnw -DskipTests package`. In a **separate,
+short-lived Bash subshell**, from `backend/`:
+
+```bash
+(
+  unset DB_PASSWORD POSTGRES_PASSWORD
+  export MIGRATION_DB_URL=jdbc:postgresql://127.0.0.1:5432/platform_lab
+  export MIGRATION_DB_USERNAME=platform_migration
+  read -r -s -p 'Migration password: ' MIGRATION_DB_PASSWORD; echo
+  export MIGRATION_DB_PASSWORD
+  java -Dloader.main=io.github.dcfaight.platformlab.DatabaseMigration \
+    -cp target/backend-0.0.1-SNAPSHOT.jar \
+    org.springframework.boot.loader.launch.PropertiesLauncher
+)
+```
+
+Adjust the URL to the selected local database/port. This entry point invokes
+Flyway only: no Spring context, HTTP server, worker, `clean`, or runtime-secret
+fallback. Exit status is authoritative; errors are deliberately sanitized.
+Do not use Maven debug output, JDBC URLs containing credentials, shell tracing,
+literal passwords in SQL/CLI arguments, or print `docker compose config` (use
+`config --quiet`). Environment secrets remain visible to trusted host/Docker
+administrators; this is not a secret-management service.
+
+**On success or failure**, reconnect through the same administrator-only `psql`
+path and close migration access; do not leave it enabled while investigating:
+
+```sql
+ALTER ROLE platform_migration NOLOGIN;
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+WHERE usename = 'platform_migration';
+```
+
+On success only, apply explicit runtime grants and enable runtime:
+
+```sql
+\i /opt/platform-database/runtime-grants.sql
+ALTER ROLE platform_runtime LOGIN;
+```
+
+Only the approved named objects/columns are granted. Future migration-created
+tables, sequences and functions remain inaccessible by default (including
+`PUBLIC EXECUTE` on new functions); review grants separately after migrations.
+Runtime can read environments/operations/idempotency/events and team membership,
+insert requests/operations/audit/events, update lifecycle columns, and use the
+event identity sequence. It cannot delete application history, read audit rows,
+change team ownership/creator fields, mutate schema, administer roles/grants,
+write teams/memberships, or access Flyway history. See the
+[exact matrix](../docs/decisions/db-role-separation-prerequisite-review.md#postgresql-privilege-inventory).
+Trusted membership administration remains separate interactive administrator SQL.
+
+### 3. Start only with runtime credentials
+
+In a fresh Bash shell, without sourcing the Compose/admin environment:
+
+```bash
+unset POSTGRES_PASSWORD MIGRATION_DB_PASSWORD MIGRATION_DB_USERNAME MIGRATION_DB_URL
+export DB_URL=jdbc:postgresql://127.0.0.1:5432/platform_lab
+export DB_USERNAME=platform_runtime
+read -r -s -p 'Runtime password: ' DB_PASSWORD; echo
+export DB_PASSWORD
 cd backend
 ./mvnw spring-boot:run
 ```
 
-Compose reads `.env` automatically; Spring Boot does **not**. The shell exports
-above map Compose variables to the backend configuration. For IntelliJ, set
-these same `DB_*` variables in the run configuration.
+Use only these `DB_*` values in IntelliJ too. Configure Basic accounts below
+before using protected endpoints. API and optional worker startup both have
+`spring.flyway.enabled=false`; never override it for runtime. Readiness tests
+connectivity, not schema currency: verify successful migration/grants before
+starting processes. Never supply migration or bootstrap secrets to API/worker.
 
 | Variable | Default |
 |---|---|
 | `DB_URL` | `jdbc:postgresql://127.0.0.1:5432/platform_lab` |
-| `DB_USERNAME` | `platform_lab` |
+| `DB_USERNAME` | `platform_runtime` |
 | `DB_PASSWORD` | Required; no default |
 
 No Kubernetes cluster is required for API-only use. No CORS configuration is
 added; keep this API in a trusted local environment (loopback only).
+
+### Existing databases, stop and rollback
+
+- Stop **all** host API/workers (including IDE runs) and Compose backend/frontend
+  before privileged changes. Do not mix old binaries with upgraded schema; V7
+  changes the idempotency conflict key. A plain restart no longer migrates.
+- For an existing volume, first retain it stopped and confirm its data/restore
+  authority. Rehearse on an independently approved disposable copy first; review
+  rows, Flyway history/checksums, owners, ACL/default/PUBLIC grants and memberships.
+  The guarded path supports only the known V1–V7 schema, with database and all
+  application objects owned by the connected bootstrap administrator, no extra
+  schemas/routines/tables, and no preexisting split role names. Older schemas
+  or unexpected inventories require separate review; never baseline/repair
+  history, use `REASSIGN OWNED`, or delete data to make setup pass.
+- After that review, in the isolated copy's administrator `psql` session:
+
+  ```sql
+  SET platform.role_split_transition = 'on';
+  \i /opt/platform-database/bootstrap.sql
+  RESET platform.role_split_transition;
+  ```
+
+  This explicitly transfers only inventoried tables (and their identity sequence)
+  to migration ownership, removes PUBLIC access, and creates the restricted
+  roles in one transaction. It does not rewrite application rows or Flyway
+  history. Then use steps 1–3's password, independent migration/validation, grant,
+  login-revocation and runtime-start flow. Compare retained rows/history and the
+  effective privilege matrix on the copy before considering an approved stopped
+  target transition. Any script error is a stop condition, not permission to
+  loosen its guards. Existing database-specific grants to other identities
+  still require administrator inventory; this is not a general ACL repair tool.
+- Stop host processes with Ctrl-C; `docker compose down` (or
+  `docker compose -f compose.deploy.yaml down`) retains the selected volume.
+  Verify project/target before any command. `down --volumes` is destructive and
+  is only for explicitly approved disposable test data, never a rollback.
+- On failure keep runtime stopped. Through the independent administrator path,
+  disable affected logins and terminate sessions (`NOLOGIN` alone does not end
+  existing sessions). For runtime revocation use `ALTER ROLE platform_runtime
+  NOLOGIN` and the termination query above with `usename = 'platform_runtime'`.
+  Close migration access on every exit. Review partial migration state before
+  retrying; do not auto-clean or widen grants.
+- Roll back compatible binaries/config only **with the runtime identity**.
+  Never restore the old shared administrator password to API/worker. There is no
+  automatic down-migration. Any required restore goes to a separately approved
+  isolated target; verify owners, actual/default/PUBLIC ACLs, role memberships,
+  sequence privileges and stale credential revocation before enabling mutations.
+- Rotate/revoke through the confirmed custodian, update only the consuming
+  process, terminate old sessions and verify replacement before resuming.
+  Proposed 90-day rotation/one-hour migration and incident windows in the
+  disposition record are not automated or newly accepted here. Retain only
+  sanitized revision/target, approval, ACL/ownership and expected/actual results,
+  never passwords, hashes, connection strings containing secrets or data exports.
 
 ## Container deployment and probes
 

@@ -110,11 +110,11 @@ class BackupRestoreSafetyTests(unittest.TestCase):
         self.assertEqual(["postgres"], [c["name"] for c in target["spec"]["containers"]])
         migrator = source["spec"]["containers"][1]
         environment = {entry["name"]: entry["value"] for entry in migrator["env"]}
-        self.assertIn("--platform.worker.enabled=false", migrator["args"])
-        self.assertEqual("false", environment["PLATFORM_WORKER_ENABLED"])
-        self.assertEqual("false", environment["WORKER_ENABLED"])
-        self.assertEqual("jdbc:postgresql://127.0.0.1:5432/drill", environment["DB_URL"])
-        self.assertEqual("60000", environment["SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT"])
+        self.assertIn("DatabaseMigration", migrator["command"][2])
+        self.assertNotIn("DB_PASSWORD", environment)
+        self.assertEqual("jdbc:postgresql://127.0.0.1:5432/drill", environment["MIGRATION_DB_URL"])
+        self.assertEqual(["test", "-f", "/tmp/migrated"],
+                         migrator["readinessProbe"]["exec"]["command"])
         serialized = json.dumps(resources)
         for forbidden in ("persistentVolumeClaim", "hostPath", '"namespace": "platform-lab"', "platform-secrets",
                           "platform-config", "postgres-data", "platform-worker"):
