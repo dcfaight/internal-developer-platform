@@ -1,5 +1,6 @@
 package io.github.dcfaight.platformlab.security;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -23,6 +24,10 @@ public class IdentityController {
                 .sorted().toList(), authorization.teams(authentication));
     }
 
-    public record IdentityResponse(String username, List<String> roles, List<String> teams) {
+    public record IdentityResponse(String username, List<String> roles,
+            @JsonInclude(JsonInclude.Include.ALWAYS) List<String> teams) {
+        public IdentityResponse {
+            teams = teams == null ? List.of() : teams;
+        }
     }
 }

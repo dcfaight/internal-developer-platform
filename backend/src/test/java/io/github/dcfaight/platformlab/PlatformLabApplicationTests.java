@@ -857,6 +857,7 @@ class PlatformLabApplicationTests {
             assertEquals(expected.getKey(), me.json().path("username").asText());
             assertEquals(1, me.json().path("roles").size());
             assertEquals(expected.getValue(), me.json().path("roles").get(0).asText());
+            assertEquals(mapper.readTree("[]"), me.json().path("teams"));
             assertTrue(me.header("Set-Cookie").isEmpty(), "Authentication must stay stateless");
         }
     }
