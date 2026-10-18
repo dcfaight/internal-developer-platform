@@ -93,7 +93,14 @@ class GitOpsConfigurationTests(unittest.TestCase):
         self.assertIn("image: " + catalog["backend"]["image"], rendered)
         frontend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-frontend.*)$", rendered)
         self.assertEqual(1, len(frontend_images))
-        self.assertIn(frontend_images[0], [release["image"] for release in catalog["frontend"]])
+        current = catalog["currentFrontend"]
+        self.assertEqual("k3s-v2", current["releaseId"])
+        self.assertEqual("0b89a5a64e3893d671280b85eb05349b9c3dd5bd", current["sourceRevision"])
+        self.assertEqual(
+            "docker.io/library/platform-lab-frontend@sha256:"
+            "9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06",
+            current["image"])
+        self.assertEqual(current["image"], frontend_images[0])
 
     @unittest.skipUnless(os.environ.get("PLATFORM_GITOPS_ARTIFACTS"),
                          "set PLATFORM_GITOPS_ARTIFACTS to verify retained OCI archives")
