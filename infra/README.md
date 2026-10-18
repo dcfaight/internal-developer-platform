@@ -445,7 +445,7 @@ TLS_DIR="$(mktemp -d /tmp/platform-k3s-tls.XXXXXX)"
 chmod 700 "$TLS_DIR"
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
   -keyout "$TLS_DIR/tls.key" -out "$TLS_DIR/tls.crt" \
-  -subj /CN=platform.localhost -addext 'subjectAltName=DNS:platform.localhost'
+  -subj /CN=platform-test.local -addext 'subjectAltName=DNS:platform-test.local'
 chmod 600 "$TLS_DIR/tls.key"
 kubectl --context "$K3S_CONTEXT" -n platform-lab create secret tls platform-tls \
   --cert="$TLS_DIR/tls.crt" --key="$TLS_DIR/tls.key"
@@ -453,7 +453,7 @@ kubectl --context "$K3S_CONTEXT" -n platform-lab create secret tls platform-tls 
 
 For longer use, supply a certificate and chain trusted by clients for your chosen
 hostname; update both ingress `rules.host` and `tls.hosts` if not using
-`platform.localhost`. There is no cert-manager, issuance, or automatic renewal.
+`platform-test.local`. There is no cert-manager, issuance, or automatic renewal.
 The Secret also provides nginx's direct TLS endpoint, with group-readable key
 permissions for UID/GID 101. Never bypass TLS verification or send Basic
 credentials over HTTP.
@@ -477,17 +477,17 @@ cluster DNS; `apply -k` creates them before Deployments. nginx resolves that sta
 Service address on startup, not via Docker's `127.0.0.11` resolver. Restart nginx
 if replacing the backend Service with a different ClusterIP.
 
-For TLS ingress, map `platform.localhost` to the K3s node's reachable IP in local
+For TLS ingress, map `platform-test.local` to the K3s node's reachable IP in local
 DNS/hosts, or use curl's explicit override:
 
 ```sh
 export K3S_NODE_IP=192.0.2.10 # Replace with your node's reachable address.
 read -r -p 'Configured operator username: ' OPERATOR_USERNAME
 curl --fail --cacert "$TLS_DIR/tls.crt" \
-  --resolve "platform.localhost:443:$K3S_NODE_IP" https://platform.localhost/
+  --resolve "platform-test.local:443:$K3S_NODE_IP" https://platform-test.local/
 curl --fail --cacert "$TLS_DIR/tls.crt" \
-  --resolve "platform.localhost:443:$K3S_NODE_IP" -u "$OPERATOR_USERNAME" \
-  https://platform.localhost/api/v1/environments
+  --resolve "platform-test.local:443:$K3S_NODE_IP" -u "$OPERATOR_USERNAME" \
+  https://platform-test.local/api/v1/environments
 ```
 
 The ingress is HTTPS-only on Traefik's `websecure` entrypoint, not an HTTP redirect.
@@ -506,7 +506,7 @@ kubectl --context "$K3S_CONTEXT" -n platform-lab port-forward --address 127.0.0.
 ```
 
 Then use `curl --fail --cacert "$TLS_DIR/tls.crt" --resolve
-platform.localhost:8443:127.0.0.1 https://platform.localhost:8443/` (on one line).
+platform-test.local:8443:127.0.0.1 https://platform-test.local:8443/` (on one line).
 For browser use, map the hostname locally and trust the test certificate explicitly.
 Sign in with the operator's **plaintext** password, not its hash.
 
@@ -523,12 +523,12 @@ worker lifecycle, restart persistence, or recovery.
 Use only the disposable cluster and an already configured OPERATOR account.
 Choose a trusted HTTPS origin that routes to this deployment, either ingress or
 the frontend TLS port-forward above. For the port-forward example,
-`platform.localhost` must resolve to `127.0.0.1` on the testing host. Do not use
+`platform-test.local` must resolve to `127.0.0.1` on the testing host. Do not use
 `--insecure`, plaintext remote HTTP, or a password hash as the login password.
 
 ```sh
 export PLATFORM_K3S_CONTEXT="$K3S_CONTEXT"
-export PLATFORM_K3S_API_URL=https://platform.localhost:8443
+export PLATFORM_K3S_API_URL=https://platform-test.local:8443
 export PLATFORM_K3S_CA_FILE="$TLS_DIR/tls.crt"
 export PLATFORM_K3S_OPERATOR_USERNAME=alice
 read -r -s -p 'Operator plaintext password: ' PLATFORM_K3S_OPERATOR_PASSWORD; echo
@@ -1112,7 +1112,7 @@ upstream image registries; do not disable certificate verification.
 2. Create `platform-lab` and its two external Secrets using the existing
    **Secrets and TLS** section. Preload all application artifacts below, plus the
    approved sample image. Ensure PostgreSQL can pull `postgres:18.6`. The target
-   retains Traefik's `platform.localhost` ingress; without Traefik, use trusted
+   retains Traefik's `platform-test.local` ingress; without Traefik, use trusted
    frontend TLS port-forwarding as above.
 
 3. Review the rendered bootstrap and target, then apply bootstrap **only after**
@@ -1231,7 +1231,7 @@ old `PASS` file cannot be mistaken for a new result.
 
    ```bash
    export PLATFORM_K3S_CONTEXT="$K3S_CONTEXT"
-   export PLATFORM_K3S_API_URL=https://platform.localhost:8443
+   export PLATFORM_K3S_API_URL=https://platform-test.local:8443
    export PLATFORM_K3S_CA_FILE="$TLS_DIR/tls.crt"
    export PLATFORM_K3S_OPERATOR_USERNAME=your-configured-operator
    read -r -s -p 'Operator plaintext password: ' PLATFORM_K3S_OPERATOR_PASSWORD; echo

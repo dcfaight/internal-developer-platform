@@ -7,10 +7,10 @@ metadata:
 spec:
   ingressClassName: traefik
   tls:
-    - hosts: [platform.localhost]
+    - hosts: [platform-test.local]
       secretName: platform-tls
   rules:
-    - host: platform.localhost
+    - host: platform-test.local
       http:
         paths:
           - path: /
