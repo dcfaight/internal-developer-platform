@@ -44,15 +44,15 @@ mean a target has been verified healthy.
 
 | Gate | Status / open blockers | Capability and implementation | What it proves / validation recorded | Remaining acceptance | References |
 |---|---|---|---|---|---|
-| **AUTH-01 — Basic/team boundary** | Implemented; validation recorded for bounded scope. | Basic-authenticated `OPERATOR`, team-scoped `DEVELOPER`, and exclusive expiry-guarded `CLEANUP` roles are implemented. Trusted SQL administrators provision teams and memberships; legacy unowned environments remain operator-managed. | Live smoke checks recorded anonymous-read `401`, cross-team create `403` without writes/reservations, owned-team create/replay `202`, and membership-revocation denial. | This bounded gate is implemented and its smoke evidence is recorded. SSO/OIDC, account lifecycle, rate limiting, and stronger tenant isolation are deferred; this is not production identity assurance. | [API and auth contract](api.md); [backend auth setup](../backend/README.md#authentication-and-authorization) |
-| **BUDGET-01 — Per-environment guardrails** | Implemented; validation recorded for bounded scope. | ResourceQuota and LimitRange budgets are enforced for provisioned environments. The fixed sample workload is a provisioning fixture, not a representative developer workload. | A targeted disposable kind check recorded LimitRange defaults and rejection of an over-budget Pod. | Budgets are guardrails, not capacity estimates; broader isolation and capacity evidence remain separate gates. | [Budget details and evidence](../infra/README.md#provisioned-environment-resource-budgets) |
-| **K3S-01 — K3s platform lifecycle** | Implemented; automated evidence pending. No blocker recorded. | Platform Kustomize package, in-cluster worker, projected credentials, and dedicated RBAC are implemented for a disposable single-node K3s cluster. | Manual create → `READY` → authenticated delete → namespace absence passed October 16, 2026. This was not an automated test run. | Record a successful automated target-specific lifecycle run with retained evidence. Do not infer PVC restart persistence or production readiness from lifecycle success. | [K3s runbook and manual evidence](../infra/README.md#local-k3s-platform); [K3s package](../infra/kubernetes/) |
-| **GITOPS-01 — GitOps live validation** | Implemented; evidence pending; blocked by `cdn01.quay.io` DNS/image-download failure. | Bounded Argo CD tooling for frontend-only reconciliation and rollback is implemented; target ownership excludes the namespace, PVC, worker RBAC, and external secrets. | Proves target-cluster Git synchronization and frontend upgrade/revert without disturbing backend or persisted state. October 17, 2026: bootstrap resources applied, but Argo controller startup was blocked by the image-download failure. No successful Git sync, frontend upgrade/revert, or persistence proof is recorded. | Resolve artifact/image availability without weakening TLS or permissions. Retain successful evidence for three distinct Git commits (baseline, frontend upgrade, revert), exact desired/runtime releases, and unchanged backend/database/PVC/secret and environment/operation state. | [GitOps runbook and validation status](../infra/README.md#disposable-k3s-gitops-deployment-and-frontend-rollback) |
-| **RESTORE-01 — Logical database round trip** | Implemented; durable evidence pending. No blocker recorded. | Opt-in disposable K3s fixture-based logical backup/restore tooling is implemented; it uses isolated temporary databases, not the live application database or PVC. | October 17, 2026: task-local disposable K3s round trip passed fixture, Flyway, schema, and sequence checks; backup took 0.207 s and restore 0.216 s. The artifacts were only in that task environment. | Retain the dump, checksum, and evidence durably for the intended disposable target, or repeat the drill and archive them. This is not live PVC backup, restart persistence, node-loss recovery, PITR, HA, or production recovery. | [Logical backup/restore runbook and limits](../infra/README.md#disposable-k3s-logical-backuprestore) |
-| **CAPACITY-01 — Lifecycle baseline** | Next focused gate; harness implemented; live validation and retained evidence pending. No live-run blocker recorded. | PR #26 implemented `capacity_baseline.py`, an opt-in harness for 10 fixed `sample-service` lifecycles with at most 2 concurrent workflows, including cleanup, plus offline tests and optional resource samples. | Must measure bounded lifecycle timing, failure, and cleanup behavior on the selected disposable target. Harness/offline tests are implementation evidence; no successful live capacity-baseline run is recorded. Per-environment quotas are guardrails, not capacity estimates. | Close only with one successful 10/10 run, exit zero, complete operation-metrics evidence, and no unresolved leftovers, archived outside the task environment. Retain the manifest, summary, invocation/exit record, target/revision/configuration, cache condition, worker settings, timings, failures, cleanup outcomes, and explicit measurement availability/limitations under the linked evidence contract; record date, target, revision, outcome, and sanitized durable reference here. Optional resource samples may be unavailable; that prevents resource-capacity conclusions, not lifecycle-gate closure. This is not support for 3,000 developers, saturation, or autoscaling evidence. | [Capacity gate and evidence contract](../automation/README.md#validation-gate); [capacity runbook](../automation/README.md#opt-in-lifecycle-capacity-baseline); [resource budgets](../infra/README.md#provisioned-environment-resource-budgets) |
-| **PERSIST-01 — Restart persistence on K3s** | Gate/runbook defined; live validation and retained evidence pending. No live-run blocker recorded. | Opt-in manual drill gracefully replaces PostgreSQL and then backend pods on a dedicated disposable single-node K3s target, retaining the same bound PVC/PV and fixed images/configuration. | Must prove known environment/operation IDs, terminal history/events, and accepted replay/conflict behavior survive both restarts, with database readiness recovered and no manual database repair. No passing K3s restart result is recorded; prior lifecycle, GitOps, and logical-restore checks do not close this gate. | Retain before/after API and storage/pod observations, restart commands/timings, original requests/keys and replay comparisons, post-restart create → `READY` → delete → namespace absence, and a no-repair/no-PVC-loss record. Close only with a passing run archived outside the task environment and a dated target/revision/outcome/evidence reference here. No PVC/namespace deletion, backup recovery, HA, node loss, failover, or PITR is tested. | [Restart-persistence drill and evidence contract](../infra/README.md#disposable-k3s-restart-persistence) |
-| **CLEANUP-01 — Expiration cleanup** | Implemented; acceptance reconciliation pending. Historical limits remain in the linked evidence. | A manual API-driven cleanup CLI is implemented; it defaults to dry-run and never deletes namespaces directly. Scheduling and remote-TLS transport are deferred. | The cleanup README preserves the original change's hosted-CI, review/security, kind, and browser verification limits. Those dated results are historical and have not been reconciled here as new failures. | Reconcile the recorded gates against current hosted CI/review and produce a successful disposable kind/browser cleanup walkthrough before treating that acceptance as closed. Do not weaken safeguards to make a drill pass. | [Cleanup usage and original evidence](../automation/README.md#evidence-and-remaining-gates-for-the-original-cleanup-change); [demo](demo.md#5-manual-expiration-cleanup) |
-| **ARCH-01 — Architecture and recovery decisions** | Planned/deferred; ownership, isolation, and recovery objectives remain unresolved. | Phase B records the intended topology, not deployed production sites. Hosting/control-plane ownership, management placement/isolation, recovery objectives, `prod1`/`prod2` implementation, identity/account-management hardening, and deeper security/recovery work remain open. | Establishes agreed design boundaries and measurable acceptance criteria, not production readiness. No broader recovery/security validation is claimed. | Record decisions/ADRs with acceptance criteria and implementation dependencies; explicitly resolve or defer SSO/OIDC, network policy, secret rotation, database role separation, retention, PITR, HA, and failover. | [Phase B decision](decisions/phase-b-target-architecture.md); [open decisions and deferred scope](#open-decisions-and-deferred-scope); [ARCH-01A (Proposed)](decisions/ARCH-01A-hosting-control-plane-ownership.md); [ARCH-01C (Proposed)](decisions/ARCH-01C-recovery-objectives-restore-order.md) |
+| **AUTH-01 — Basic/team boundary** | Implemented; validation recorded for bounded scope. | Basic-authenticated `OPERATOR`, team-scoped `DEVELOPER`, and exclusive expiry-guarded `CLEANUP` roles [...] |
+| **BUDGET-01 — Per-environment guardrails** | Implemented; validation recorded for bounded scope. | ResourceQuota and LimitRange budgets are enforced for provisioned environments. The fixed sam[...] |
+| **K3S-01 — K3s platform lifecycle** | Implemented; automated evidence pending. No blocker recorded. | Platform Kustomize package, in-cluster worker, projected credentials, and dedicated RBAC a[...] |
+| **GITOPS-01 — GitOps live validation** | Implemented; evidence pending; blocked by `cdn01.quay.io` DNS/image-download failure. | Bounded Argo CD tooling for frontend-only reconciliation and ro[...] |
+| **RESTORE-01 — Logical database round trip** | Implemented; durable evidence pending. No blocker recorded. | Opt-in disposable K3s fixture-based logical backup/restore tooling is implemented; [...] |
+| **CAPACITY-01 — Lifecycle baseline** | Next focused gate; harness implemented; live validation and retained evidence pending. No live-run blocker recorded. | PR #26 implemented `capacity_basel[...]` |
+| **PERSIST-01 — Restart persistence on K3s** | Gate/runbook defined; live validation and retained evidence pending. No live-run blocker recorded. | Opt-in manual drill gracefully replaces Postg[...] |
+| **CLEANUP-01 — Expiration cleanup** | Implemented; acceptance reconciliation pending. Historical limits remain in the linked evidence. | A manual API-driven cleanup CLI is implemented; it defa[...] |
+| **ARCH-01 — Architecture and recovery decisions** | Planned/deferred; ownership, isolation, and recovery objectives remain unresolved. | Phase B records the intended topology, not deployed pro[...] |
 
 ## Proposed next sequence
 
@@ -145,13 +145,13 @@ not work authorized by this refinement.
 
 | Decision needed (all open) | Questions to resolve in a decision record | Implementation sequencing after an explicit decision |
 |---|---|---|
-| [**ARCH-01A — Hosting, control-plane ownership, and isolation (Proposed)**](decisions/ARCH-01A-hosting-control-plane-ownership.md) | Managed or self-operated hosting/control planes? Who owns upgrades, patching, incidents, access, and failure-domain isolation? What availability, cost, and operating constraints drive the choice? | Establish ownership and hosting boundaries before choosing cluster layouts or provisioning shared infrastructure. |
-| [**ARCH-01B — Management placement and environment boundaries (Proposed)**](decisions/ARCH-01B-management-placement-environment-boundaries.md) | Where do the portal/API, workers, GitOps, identity dependencies, and platform database run? How are management, dev/QA/UAT, and production separated? Which credentials and dependencies cross boundaries, and can management survive a workload-site outage? | Use A and C to define trust/failure boundaries before designing cross-cluster access, promotion paths, or worker permissions. |
-| [**ARCH-01C — Recovery objectives and restore order (Proposed)**](decisions/ARCH-01C-recovery-objectives-restore-order.md) | What RPO (acceptable data loss) and RTO (acceptable recovery time) apply to platform state and workload data for pod, node, cluster, and site loss? Who declares recovery, and in what order must identity, secrets, storage/database, management, and workloads return? | Agree objectives and a dependency/recovery order before selecting backup, replication, or failover mechanisms. Define required recovery evidence separately from the existing bounded drills. |
-| [**ARCH-01D — prod1/prod2 continuity model (Proposed)**](decisions/ARCH-01D-prod1-proxy-continuity-model.md) | How will intended site independence be achieved? Active/passive or active/active? What data ownership/replication, traffic switching, fencing/split-brain protection, planned switchover, failover, and failback model fits the objectives? | Depends on A–C; implement only in separately scoped work with explicit safety, rollback, and site-loss acceptance criteria. The continuity-pair intent does not select a mechanism. |
-| [**ARCH-01E — SSO/OIDC and account management (Proposed)**](decisions/ARCH-01E-identity-account-management.md) | Which identity provider and trust model? How do claims map to operator/developer/cleanup permissions and team membership? Who owns provisioning, revocation, service accounts, break-glass access, and audit? | Use B/C trust and recovery boundaries; decide identity/account lifecycle before production-facing access expansion. Preserve current role/team safeguards until a separately reviewed migration is validated. |
-| [**ARCH-01F — Network and credential/data-access hardening (Proposed)**](decisions/ARCH-01F-network-credential-data-access-hardening.md) | What network-policy enforcement and permitted flows fit the boundaries? How will worker blast radius, secret encryption/rotation, certificate renewal, and separate runtime/migration/backup database roles be handled and audited? | Depends on B/E and recovery dependencies in C; specify least-privilege policies and rotation/revocation tests before rollout, including recovery access without bypassing controls. |
-| [**ARCH-01G — Retention, PITR, HA, and failover (Proposed)**](decisions/ARCH-01G-retention-pitr-ha-failover.md) | What backup scope, schedule, retention/deletion policy, off-site protection, and restore verification are required? Is point-in-time recovery (PITR) or high availability (HA) needed, and for which components? How do database recovery, replication, and failover meet C/D without treating replicas as backups? | Use C/D objectives and F access/secret requirements; decide mechanisms before implementing scheduled backups, PITR, HA, or automated failover. Require separate restore/site-loss drills and retained evidence. |
+| [**ARCH-01A — Hosting, control-plane ownership, and isolation (Proposed)**](decisions/ARCH-01A-hosting-control-plane-ownership.md) | Managed or self-operated hosting/control planes? Who owns [...] |
+| [**ARCH-01B — Management placement and environment boundaries (Proposed)**](decisions/ARCH-01B-management-placement-environment-boundaries.md) | Where do the portal/API, workers, GitOps, iden[...] |
+| [**ARCH-01C — Recovery objectives and restore order (Proposed)**](decisions/ARCH-01C-recovery-objectives-restore-order.md) | What RPO (acceptable data loss) and RTO (acceptable recovery time)[...] |
+| [**ARCH-01D — prod1/prod2 continuity model (Proposed)**](decisions/ARCH-01D-prod1-proxy-continuity-model.md) | How will intended site independence be achieved? Active/passive or active/active[...] |
+| [**ARCH-01E — SSO/OIDC and account management (Proposed)**](decisions/ARCH-01E-identity-account-management.md) | Which identity provider and trust model? How do claims map to operator/develop[...] |
+| [**ARCH-01F — Network and credential/data-access hardening (Proposed)**](decisions/ARCH-01F-network-credential-data-access-hardening.md) | What network-policy enforcement and permitted flows [...] |
+| [**ARCH-01G — Retention, PITR, HA, and failover (Proposed)**](decisions/ARCH-01G-retention-pitr-ha-failover.md) | What backup scope, schedule, retention/deletion policy, off-site protection, [...] |
 
 ### Architecture/recovery decision checklist
 
@@ -264,67 +264,116 @@ to finish live gates before discussing architecture:
    evidence requirements for each. Decision acceptance is not implementation,
    successful recovery, or authorization for production deployment.
 
-### Candidate DB-role slice: blocking versus can-wait checklist
+### Architecture/recovery review checklist for ARCH-01A + ARCH-01C
 
-**Scope, not authorization:** separate PostgreSQL application runtime identity/grants
-from migration/schema-owner identity on a disposable target only. All seven
-ARCH-01 ADRs remain **Proposed**. Merged documentation is not decision acceptance,
-implemented controls, passed validation, or production authorization. This
-checklist supports review under the canonical register above; it changes no
-status or ADR acceptance criteria.
+Use this checklist to review the two records together before moving on to ARCH-01B, then D/E, then F/G.
 
-Classifications below are relative to this candidate slice, not universal
-priorities. **Blocking decision** requires relevant explicit acceptance before
-separate implementation/validation PRs. **Dependency review / bounded disposition
-needed** means reviewers must resolve the applicable constraints, not ignore the
-dependency. **Mechanism can wait** applies only where the ADR permits deferral,
-with blocked follow-ons preserved. B/E/F cannot be classified wholesale as
-deferrable. A deferral alone does not satisfy a dependency requiring acceptance;
-any narrower accepted scope requires explicit review against the ADR criteria,
-not an exception invented by this checklist.
+## What is already settled
+- [ ] Phase B intent is already recorded:
+  - [ ] target population is approximately 3,000 developers
+  - [ ] dev/QA/UAT are the lifecycle focus
+  - [ ] `prod1` and `prod2` are intended as separate continuity sites/clusters
+- [ ] Existing validation gates remain separate from architecture decisions:
+  - [ ] GITOPS-01
+  - [ ] PERSIST-01
+  - [ ] CAPACITY-01
+  - [ ] RESTORE-01
+- [ ] The roadmap still distinguishes:
+  - [ ] merge from validation
+  - [ ] validation evidence from production readiness
+  - [ ] ARCH-01 records from accepted designs
 
-| ADR | Must be decided/dispositioned before the slice | What can wait, subject to permitted explicit deferral | Work still blocked / revisit trigger |
-|---|---|---|---|
-| [A — Hosting/ownership](decisions/ARCH-01A-hosting-control-plane-ownership.md) | **Blocking decision, jointly with C:** accountable ownership, hosting/control-plane boundaries, management/workload isolation, administrative authority, and operating/failure-domain constraints relevant to the target. | Detailed production hosting products/provisioning; no waiver of ownership or isolation requirements. | Ownership/isolation-dependent shared infrastructure and production expansion remain blocked; revisit with C if recovery constraints conflict. |
-| [B — Placement/boundaries](decisions/ARCH-01B-management-placement-environment-boundaries.md) | **Blocking decision:** management, database, and workload lifecycle/trust boundaries; owned API/worker, migration, administrative, and recovery flows/credentials, reconciled with A/C. | Production placement implementation and promotion tooling, not the boundary/ownership disposition required by F. | Boundary-dependent access and role rollout remain blocked pending relevant acceptance; revisit when placement, lifecycle, or cross-boundary flows change. |
-| [C — Recovery](decisions/ARCH-01C-recovery-objectives-restore-order.md) | **Blocking decision, jointly with A:** platform-data ownership, relevant objectives or permitted owned/time-bounded deferrals, restore order, recovery authority, and credential/key/bootstrap access without circular dependencies. | Detailed backup/PITR/HA mechanisms belong to D/G; no numeric objectives are inferred here. | Objective/order-dependent recovery choices remain blocked; revisit at deferral expiry or when identity, key, data, or failure scope changes. |
-| [D — Site continuity](decisions/ARCH-01D-prod1-proxy-continuity-model.md) | **Dependency review / bounded disposition needed:** reconcile F's site-scoped authority and C/E recovery access with D; record applicable constraints or permitted deferrals without selecting a continuity model. | Site provisioning, replication, routing, fencing implementation, and failover/failback mechanisms. | Dependent continuity rollout remains blocked by A–C/E/F/G prerequisites; revisit before site-scoped access, replication, or promotion work. |
-| [E — Identity/accounts](decisions/ARCH-01E-identity-account-management.md) | **Blocking decision for F's prerequisite:** machine/DB credential ownership and authority, membership-administration approval/execution, recovery/break-glass access, and revocation responsibilities within A/B/C boundaries; review D assumptions. | Actual human OIDC integration/provider rollout may wait under E's constraints; not service-identity lifecycle, authorization ownership, or recovery authority. | Dependent credential/data hardening and production access expansion remain blocked pending relevant acceptance; revisit before federation, entitlement, or credential-lifecycle changes. |
-| [F — Credential/data access](decisions/ARCH-01F-network-credential-data-access-hardening.md) | **Blocking decision:** approved runtime/migration/backup/restore grant and responsibility matrix; separate runtime from schema ownership, separately approved/time-bounded migration privilege, backup/restore interfaces, and post-restore grant/revocation authority. Requires A/B/E/C dispositions, D reconciliation, and C/E/G bootstrap/key constraints. | Broader network enforcement tooling, worker controls, and secret/certificate automation only with valid disposition; deferring grants leaves privileged-role migration blocked. | Role migration and dependent live hardening checks remain blocked until relevant acceptance and separately reviewed implementation/validation work; revisit for new flows, grants, or recovery consumers. |
-| [G — Data protection](decisions/ARCH-01G-retention-pitr-ha-failover.md) | **Dependency review / bounded disposition needed:** data scope/ownership, backup/export/restore authority, independently recoverable identities/keys, restore-target isolation, grant reconciliation and stale-credential revocation with C/E/F; review D dependencies. | Scheduled backups, retention automation, PITR, HA, and failover mechanisms only under G's permitted owned deferrals; no topology or protection capability is assumed. | Dependent protection/recovery rollout and drills remain blocked; revisit C/D/F acceptance and bootstrap/key handoffs before dependent G acceptance or mechanism work. |
+## What is still unresolved
 
-Readiness remains unchecked:
+### ARCH-01A — Hosting, control-plane ownership, and isolation
+- [ ] Hosting model is not selected:
+  - [ ] managed
+  - [ ] self-operated
+  - [ ] split / hybrid
+- [ ] Control-plane ownership is not selected:
+  - [ ] who operates it
+  - [ ] who patches / upgrades it
+  - [ ] who responds to incidents
+- [ ] Isolation requirements are not fully defined:
+  - [ ] management vs workload boundaries
+  - [ ] privileged access boundaries
+  - [ ] failure domains
+- [ ] Operational constraints are not recorded:
+  - [ ] availability expectations
+  - [ ] cost expectations
+  - [ ] support boundaries
+  - [ ] recovery responsibility
 
-- [ ] Link reviewed, explicitly accepted decisions for the relevant scope from
-  the register, with dependencies reconciled in the canonical sequence.
-- [ ] Record each permitted explicit deferral with accountable owner, revisit
-  condition, expiry where required, residual risk, and work still blocked;
-  do not substitute deferral for required acceptance.
-- [ ] Approve the runtime/migration/backup/restore responsibility and grant
-  matrix, including authorization-membership administration, required runtime
-  reads, credential custody/revocation, and post-restore verification.
-- [ ] Clarify whether migrations still run on application startup with privileged
-  credentials or through an independently executed migration path; review how
-  runtime is kept from migration credentials and schema-owner authority.
-- [ ] Review a separate disposable-target implementation/validation proposal:
-  positive/negative tests, safety/stop and rollback boundaries preserving access
-  restrictions, and sanitized durable evidence (target, revision, configuration,
-  commands, expected/actual results, approvals; no secrets).
+### ARCH-01C — Recovery objectives and restore order
+- [ ] Recovery objectives are not selected:
+  - [ ] RPO
+  - [ ] RTO
+  - [ ] by service or by failure scope
+- [ ] In-scope state is not fully inventoried:
+  - [ ] platform state
+  - [ ] workload state
+  - [ ] identity / keys / secrets
+  - [ ] databases / storage
+- [ ] Restore order is not finalized:
+  - [ ] what comes back first
+  - [ ] what can be parallelized
+  - [ ] what depends on what
+- [ ] Recovery authority is not defined:
+  - [ ] who declares recovery
+  - [ ] who verifies recovery
+  - [ ] what evidence is required
 
-**Future tests, planned—not run here:** migrations succeed with the migration
-identity; runtime API/worker persistence, idempotency, and audit paths still work.
-Runtime cannot mutate schema, administer roles, or write membership-administration
-data, but retains required membership reads. Check effective privileges, role
-membership, and ownership for unintended escalation. Preserve existing
-authorization/team boundaries, expiry-only cleanup, worker fencing, and
-ownership/deletion guards. Account for backup/restore privilege interfaces
-without claiming a recovery mechanism has been implemented or validated.
+## Questions to answer in the review
 
-**Immediate next action:** joint A/C review, then B → D/E → F/G dependency
-dispositions, iterating conflicts as above—not a code rollout. Independently,
-GITOPS-01, PERSIST-01, CAPACITY-01, and RESTORE-01 may proceed under their existing
-runbooks and safety boundaries. Passing those gates is not ARCH-01 acceptance;
-their status and historical evidence remain unchanged.
+### ARCH-01A
+- [ ] Who owns hosting and the control plane?
+- [ ] Is the platform team self-operating infrastructure, using a managed provider, or splitting responsibility?
+- [ ] What isolation is required between management and workload components?
+- [ ] What failure domains are acceptable?
+- [ ] What are the cost and support tradeoffs of the chosen model?
+
+### ARCH-01C
+- [ ] What recovery outcomes must be guaranteed?
+- [ ] What RPO / RTO values are acceptable for each in-scope service or state?
+- [ ] What failure scenarios matter most?
+- [ ] What exact restore order should be used?
+- [ ] What can be restored in parallel?
+- [ ] What evidence will prove the recovery plan is sound?
+
+### Joint A + C questions
+- [ ] Do the hosting and isolation choices support the recovery objectives?
+- [ ] Are there recovery objectives the proposed hosting model cannot realistically meet?
+- [ ] Are there dependencies that force a different ownership or isolation model?
+- [ ] Is there a break-glass path that avoids circular dependencies?
+
+## What a valid explicit deferral would need to include
+- [ ] A named owner
+- [ ] A revisit condition
+- [ ] What work is blocked
+- [ ] What remains allowed in the meantime
+- [ ] Whether the deferral is time-bounded
+- [ ] Any residual risk
+
+### Deferral template
+- [ ] Deferred item: <hosting model / recovery objective / restore order / etc.>
+- [ ] Owner: <named person or team>
+- [ ] Revisit condition: <what must happen before revisiting>
+- [ ] Blocked work: <what cannot proceed yet>
+- [ ] Allowed interim work: <what can still move forward safely>
+- [ ] Expiry or review date: <if time-bounded>
+
+## Decision-quality check
+- [ ] The review outcome clearly states:
+  - [ ] what the platform owns
+  - [ ] what it depends on
+  - [ ] what it must recover
+  - [ ] in what order it must recover
+  - [ ] what implementation work is now unblocked
+
+## Recommended review order
+- [ ] Review ARCH-01A first
+- [ ] Review ARCH-01C second
+- [ ] Reassess ARCH-01B, then D/E, then F/G based on the outcomes
 
 ### Outside the current validation gates
 
