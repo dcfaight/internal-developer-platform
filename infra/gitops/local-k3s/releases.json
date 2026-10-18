@@ -16,10 +16,6 @@
     "archive": "platform-backend.tar",
     "archiveSHA256": "d2703a6e81383ed72c3b64af7265d474bbb496940366bb3c79ebf9f42304ae3d"
   },
-  "currentBackend": {
-  "releaseId": "k3s-v2",
-  "image": "docker.io/library/platform-lab-backend@sha256:c7e66463b7ea67cbdc06e225f39482b7b43b209f37ecf12125e9cc32ad1aa10f"
-},
   "frontend": [
     {
       "releaseId": "gitops-a",
