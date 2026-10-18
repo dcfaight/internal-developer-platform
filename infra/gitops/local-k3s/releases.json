@@ -1,5 +1,9 @@
 {
   "platform": "linux/amd64",
+  "currentBackend": {
+    "releaseId": "k3s-v2",
+    "image": "docker.io/library/platform-lab-backend@sha256:c7e66463b7ea67cbdc06e225f39482b7b43b209f37ecf12125e9cc32ad1aa10f"
+  },
   "currentFrontend": {
     "releaseId": "k3s-v2",
     "sourceRevision": "0b89a5a64e3893d671280b85eb05349b9c3dd5bd",

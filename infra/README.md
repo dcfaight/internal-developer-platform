@@ -1135,8 +1135,13 @@ upstream image registries; do not disable certificate verification.
 
 ### Immutable artifacts and retention
 
-`infra/gitops/local-k3s/releases.json` records the actual build source commit,
-platform, manifest digest, image configuration digest, and archive SHA-256.
+`infra/gitops/local-k3s/releases.json` retains historical `backend` and `frontend`
+archive records with source commit, platform, manifest/configuration digests, and
+archive SHA-256. `currentBackend` and `currentFrontend` identify the selected images
+separately. Backend `k3s-v2` tracks the user's locally imported image by manifest
+digest; registry publication, source commit, configuration digest, archive checksum,
+and the live runtime imageID-to-manifest relationship have not been independently
+verified. The historical backend archive metadata does not describe `k3s-v2`.
 The target selects the backend and baseline frontend by **manifest digest**, not
 a reusable tag. Both application pull policies remain `Never`.
 The two frontend variants differ only in public `/release.json`; both use the

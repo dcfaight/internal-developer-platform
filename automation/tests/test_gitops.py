@@ -90,7 +90,16 @@ class GitOpsConfigurationTests(unittest.TestCase):
             self.assertRegex(release["archiveSHA256"], r"^[0-9a-f]{64}$")
             self.assertEqual(release["archive"], Path(release["archive"]).name)
         rendered = render(GITOPS / "local-k3s")
-        self.assertIn("image: " + catalog["backend"]["image"], rendered)
+        backend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-backend.*)$", rendered)
+        current_backend = catalog["currentBackend"]
+        self.assertEqual({"releaseId", "image"}, set(current_backend))
+        self.assertEqual("k3s-v2", current_backend["releaseId"])
+        self.assertEqual(
+            "docker.io/library/platform-lab-backend@sha256:"
+            "c7e66463b7ea67cbdc06e225f39482b7b43b209f37ecf12125e9cc32ad1aa10f",
+            current_backend["image"])
+        self.assertEqual([current_backend["image"]], backend_images)
+        self.assertNotIn("image: " + catalog["backend"]["image"], rendered)
         frontend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-frontend.*)$", rendered)
         self.assertEqual(1, len(frontend_images))
         current = catalog["currentFrontend"]
