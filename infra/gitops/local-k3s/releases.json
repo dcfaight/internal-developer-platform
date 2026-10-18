@@ -33,5 +33,12 @@
       "archive": "platform-frontend-b.tar",
       "archiveSHA256": "a03a52fca62a0fae4eaeed3886b6269f1dc6c3a867e5591f4686ded74b51040f"
     }
-  ]
+  ],
+  "backend": {
+    "sourceRevision": "2c2e05c7765a7481883936af6a8700028c085cea",
+    "image": "docker.io/library/platform-lab-backend@sha256:2db7b4fef29ee83dfc0aa5e5bba919f306064829b0217a6a12875065072df8cc",
+    "configDigest": "sha256:c159ec159e5a4ac80830a012de21bad5944cfd16c74339e5825b53c36bc0040e",
+    "archive": "platform-backend.tar",
+    "archiveSHA256": "d2703a6e81383ed72c3b64af7265d474bbb496940366bb3c79ebf9f42304ae3d"
+  }
 }
