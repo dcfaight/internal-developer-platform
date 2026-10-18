@@ -9,13 +9,6 @@
     "sourceRevision": "0b89a5a64e3893d671280b85eb05349b9c3dd5bd",
     "image": "docker.io/library/platform-lab-frontend@sha256:9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06"
   },
-  "backend": {
-    "sourceRevision": "2c2e05c7765a7481883936af6a8700028c085cea",
-    "image": "docker.io/library/platform-lab-backend@sha256:2db7b4fef29ee83dfc0aa5e5bba919f306064829b0217a6a12875065072df8cc",
-    "configDigest": "sha256:c159ec159e5a4ac80830a012de21bad5944cfd16c74339e5825b53c36bc0040e",
-    "archive": "platform-backend.tar",
-    "archiveSHA256": "d2703a6e81383ed72c3b64af7265d474bbb496940366bb3c79ebf9f42304ae3d"
-  },
   "frontend": [
     {
       "releaseId": "gitops-a",
