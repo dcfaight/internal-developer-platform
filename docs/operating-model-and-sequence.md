@@ -136,6 +136,8 @@ those validation gates passed.
 it records intended population and continuity topology, not the architecture
 choices below. These are decision prompts, not selected designs, implementation
 commitments, or production-readiness criteria already met.
+The separate [ARCH-01 recommendation note](decisions/ARCH-01-recommendations.md)
+offers a proposed A–G direction for review; it does not change any ADR status.
 
 ### Open decision register
 
