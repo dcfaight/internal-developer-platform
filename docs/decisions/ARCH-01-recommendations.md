@@ -1,7 +1,7 @@
 # ARCH-01: Recommended Architecture Direction
 
-**Record type:** Recommendation note; not an accepted decision or implementation record  
-**Date:** 2026-10-18  
+**Record type:** Recommendation note; not an accepted decision or implementation record
+**Date:** 2026-10-18
 **Scope:** Recommended direction for ARCH-01A through ARCH-01G
 
 ## Purpose and basis
