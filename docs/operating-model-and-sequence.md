@@ -275,6 +275,9 @@ implemented controls, passed validation, or production authorization. This
 checklist supports review under the canonical register above; it changes no
 status or ADR acceptance criteria.
 
+Use the [DB-role prerequisite review note](decisions/db-role-separation-prerequisite-review.md)
+for recommended bounded dispositions and the implementation handoff; none is accepted there.
+
 Classifications below are relative to this candidate slice, not universal
 priorities. **Blocking decision** requires relevant explicit acceptance before
 separate implementation/validation PRs. **Dependency review / bounded disposition
