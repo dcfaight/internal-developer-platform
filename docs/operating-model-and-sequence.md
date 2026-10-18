@@ -275,8 +275,9 @@ implemented controls, passed validation, or production authorization. This
 checklist supports review under the canonical register above; it changes no
 status or ADR acceptance criteria.
 
-Use the [DB-role prerequisite review note](decisions/db-role-separation-prerequisite-review.md)
-for recommended bounded dispositions and the implementation handoff; none is accepted there.
+Use the [consolidated DB-role disposition and implementation work order](decisions/db-role-separation-prerequisite-review.md)
+as the single proposed review package. Its completion is preparation only: no
+ADR disposition is accepted there and every readiness item below remains open.
 
 Classifications below are relative to this candidate slice, not universal
 priorities. **Blocking decision** requires relevant explicit acceptance before
@@ -325,11 +326,17 @@ authorization/team boundaries, expiry-only cleanup, worker fencing, and
 ownership/deletion guards. Account for backup/restore privilege interfaces
 without claiming a recovery mechanism has been implemented or validated.
 
-**Immediate next action:** joint A/C review, then B → D/E → F/G dependency
-dispositions, iterating conflicts as above—not a code rollout. Independently,
-GITOPS-01, PERSIST-01, CAPACITY-01, and RESTORE-01 may proceed under their existing
-runbooks and safety boundaries. Passing those gates is not ARCH-01 acceptance;
-their status and historical evidence remain unchanged.
+**Finite next action:** the maintainer completes the approval sequence in the
+[consolidated DB-role review package](decisions/db-role-separation-prerequisite-review.md#finite-maintainer-review-action):
+confirm the proposed accountable maintainer and actual credential/recovery
+authority, review A/C jointly and then B → D/E → F/G against their existing
+criteria, and record accepted or deferred dispositions in those ADRs and this
+roadmap. This is not another general investigation or a code rollout. If an
+applicable criterion or required authority remains unmet, leave that ADR
+Proposed and the implementation blocked. Independently, GITOPS-01, PERSIST-01,
+CAPACITY-01, and RESTORE-01 may proceed under their existing runbooks and safety
+boundaries. Passing those gates is not ARCH-01 acceptance; their status and
+historical evidence remain unchanged.
 
 ### ARCH-01A + ARCH-01C joint review checklist
 
