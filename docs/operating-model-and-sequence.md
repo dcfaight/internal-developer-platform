@@ -264,6 +264,68 @@ to finish live gates before discussing architecture:
    evidence requirements for each. Decision acceptance is not implementation,
    successful recovery, or authorization for production deployment.
 
+### Candidate DB-role slice: blocking versus can-wait checklist
+
+**Scope, not authorization:** separate PostgreSQL application runtime identity/grants
+from migration/schema-owner identity on a disposable target only. All seven
+ARCH-01 ADRs remain **Proposed**. Merged documentation is not decision acceptance,
+implemented controls, passed validation, or production authorization. This
+checklist supports review under the canonical register above; it changes no
+status or ADR acceptance criteria.
+
+Classifications below are relative to this candidate slice, not universal
+priorities. **Blocking decision** requires relevant explicit acceptance before
+separate implementation/validation PRs. **Dependency review / bounded disposition
+needed** means reviewers must resolve the applicable constraints, not ignore the
+dependency. **Mechanism can wait** applies only where the ADR permits deferral,
+with blocked follow-ons preserved. B/E/F cannot be classified wholesale as
+deferrable. A deferral alone does not satisfy a dependency requiring acceptance;
+any narrower accepted scope requires explicit review against the ADR criteria,
+not an exception invented by this checklist.
+
+| ADR | Must be decided/dispositioned before the slice | What can wait, subject to permitted explicit deferral | Work still blocked / revisit trigger |
+|---|---|---|---|
+| [A — Hosting/ownership](decisions/ARCH-01A-hosting-control-plane-ownership.md) | **Blocking decision, jointly with C:** accountable ownership, hosting/control-plane boundaries, management/workload isolation, administrative authority, and operating/failure-domain constraints relevant to the target. | Detailed production hosting products/provisioning; no waiver of ownership or isolation requirements. | Ownership/isolation-dependent shared infrastructure and production expansion remain blocked; revisit with C if recovery constraints conflict. |
+| [B — Placement/boundaries](decisions/ARCH-01B-management-placement-environment-boundaries.md) | **Blocking decision:** management, database, and workload lifecycle/trust boundaries; owned API/worker, migration, administrative, and recovery flows/credentials, reconciled with A/C. | Production placement implementation and promotion tooling, not the boundary/ownership disposition required by F. | Boundary-dependent access and role rollout remain blocked pending relevant acceptance; revisit when placement, lifecycle, or cross-boundary flows change. |
+| [C — Recovery](decisions/ARCH-01C-recovery-objectives-restore-order.md) | **Blocking decision, jointly with A:** platform-data ownership, relevant objectives or permitted owned/time-bounded deferrals, restore order, recovery authority, and credential/key/bootstrap access without circular dependencies. | Detailed backup/PITR/HA mechanisms belong to D/G; no numeric objectives are inferred here. | Objective/order-dependent recovery choices remain blocked; revisit at deferral expiry or when identity, key, data, or failure scope changes. |
+| [D — Site continuity](decisions/ARCH-01D-prod1-proxy-continuity-model.md) | **Dependency review / bounded disposition needed:** reconcile F's site-scoped authority and C/E recovery access with D; record applicable constraints or permitted deferrals without selecting a continuity model. | Site provisioning, replication, routing, fencing implementation, and failover/failback mechanisms. | Dependent continuity rollout remains blocked by A–C/E/F/G prerequisites; revisit before site-scoped access, replication, or promotion work. |
+| [E — Identity/accounts](decisions/ARCH-01E-identity-account-management.md) | **Blocking decision for F's prerequisite:** machine/DB credential ownership and authority, membership-administration approval/execution, recovery/break-glass access, and revocation responsibilities within A/B/C boundaries; review D assumptions. | Actual human OIDC integration/provider rollout may wait under E's constraints; not service-identity lifecycle, authorization ownership, or recovery authority. | Dependent credential/data hardening and production access expansion remain blocked pending relevant acceptance; revisit before federation, entitlement, or credential-lifecycle changes. |
+| [F — Credential/data access](decisions/ARCH-01F-network-credential-data-access-hardening.md) | **Blocking decision:** approved runtime/migration/backup/restore grant and responsibility matrix; separate runtime from schema ownership, separately approved/time-bounded migration privilege, backup/restore interfaces, and post-restore grant/revocation authority. Requires A/B/E/C dispositions, D reconciliation, and C/E/G bootstrap/key constraints. | Broader network enforcement tooling, worker controls, and secret/certificate automation only with valid disposition; deferring grants leaves privileged-role migration blocked. | Role migration and dependent live hardening checks remain blocked until relevant acceptance and separately reviewed implementation/validation work; revisit for new flows, grants, or recovery consumers. |
+| [G — Data protection](decisions/ARCH-01G-retention-pitr-ha-failover.md) | **Dependency review / bounded disposition needed:** data scope/ownership, backup/export/restore authority, independently recoverable identities/keys, restore-target isolation, grant reconciliation and stale-credential revocation with C/E/F; review D dependencies. | Scheduled backups, retention automation, PITR, HA, and failover mechanisms only under G's permitted owned deferrals; no topology or protection capability is assumed. | Dependent protection/recovery rollout and drills remain blocked; revisit C/D/F acceptance and bootstrap/key handoffs before dependent G acceptance or mechanism work. |
+
+Readiness remains unchecked:
+
+- [ ] Link reviewed, explicitly accepted decisions for the relevant scope from
+  the register, with dependencies reconciled in the canonical sequence.
+- [ ] Record each permitted explicit deferral with accountable owner, revisit
+  condition, expiry where required, residual risk, and work still blocked;
+  do not substitute deferral for required acceptance.
+- [ ] Approve the runtime/migration/backup/restore responsibility and grant
+  matrix, including authorization-membership administration, required runtime
+  reads, credential custody/revocation, and post-restore verification.
+- [ ] Clarify whether migrations still run on application startup with privileged
+  credentials or through an independently executed migration path; review how
+  runtime is kept from migration credentials and schema-owner authority.
+- [ ] Review a separate disposable-target implementation/validation proposal:
+  positive/negative tests, safety/stop and rollback boundaries preserving access
+  restrictions, and sanitized durable evidence (target, revision, configuration,
+  commands, expected/actual results, approvals; no secrets).
+
+**Future tests, planned—not run here:** migrations succeed with the migration
+identity; runtime API/worker persistence, idempotency, and audit paths still work.
+Runtime cannot mutate schema, administer roles, or write membership-administration
+data, but retains required membership reads. Check effective privileges, role
+membership, and ownership for unintended escalation. Preserve existing
+authorization/team boundaries, expiry-only cleanup, worker fencing, and
+ownership/deletion guards. Account for backup/restore privilege interfaces
+without claiming a recovery mechanism has been implemented or validated.
+
+**Immediate next action:** joint A/C review, then B → D/E → F/G dependency
+dispositions, iterating conflicts as above—not a code rollout. Independently,
+GITOPS-01, PERSIST-01, CAPACITY-01, and RESTORE-01 may proceed under their existing
+runbooks and safety boundaries. Passing those gates is not ARCH-01 acceptance;
+their status and historical evidence remain unchanged.
+
 ### Outside the current validation gates
 
 GITOPS-01 tests bounded frontend reconciliation/revert, PERSIST-01 tests graceful
