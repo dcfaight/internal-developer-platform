@@ -766,3 +766,15 @@ It does not establish:
 - Operational experience at eBay’s scale.
 
 Known limitations and unfinished features will remain visible as implementation progresses.
+
+## How we make decisions here
+
+When a choice is not fully determined by the current evidence, prefer the simplest defensible option that still fits the documented goals and constraints.
+
+- Use existing repository evidence first, before introducing new assumptions.
+- Make a clear recommendation rather than waiting for perfect certainty.
+- State assumptions explicitly so future changes can be reviewed against them.
+- Defer only the parts that genuinely require more evidence or a later decision.
+- Keep unresolved items visible, bounded, and clearly labeled.
+- Avoid blocking progress unless the choice materially affects correctness, safety, scope, or recoverability.
+- If later evidence disproves an assumption, update the decision and explain the change.
