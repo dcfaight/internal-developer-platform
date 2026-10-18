@@ -146,6 +146,8 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
    ```sh
    read -r -s -p 'Deployment database password: ' POSTGRES_PASSWORD; echo
    export POSTGRES_PASSWORD
+   read -r -s -p 'Separate runtime database password: ' DB_PASSWORD; echo
+   export DB_PASSWORD
    export DEPLOY_OPERATOR_USERNAME=alice
    # Paste the generated hash, not the plaintext login password:
    read -r -s -p 'Operator password hash: ' DEPLOY_OPERATOR_PASSWORD_HASH; echo
@@ -155,7 +157,7 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
    export HTTPS_PORT=8443
    ```
 
-   All five credentials/certificate variables must be nonempty or Compose refuses
+   All six credentials/certificate variables must be nonempty or Compose refuses
    to start. Certificate files must already exist. The certificate must match the
    hostname used by clients, with a complete chain trusted by those clients.
    nginx runs as UID/GID `101:101`: ensure that identity can read the key, e.g.
@@ -178,11 +180,44 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
    sudo chmod 640 "$TLS_KEY_FILE"
    ```
 
-3. Build and start:
+3. Build, provision and migrate **before** starting runtime. This role split is
+   for a fresh disposable Compose target only; it does not approve production
+   deployment or change ADR status. Complete the authority/custody checks and
+   [bootstrap procedure](../backend/README.md#1-bootstrap-a-fresh-disposable-target)
+   first. Select a new project/volume; never apply bootstrap to an existing
+   deployment volume:
 
    ```sh
+   export COMPOSE_PROJECT_NAME=platform-role-split-deploy
    docker compose -f compose.deploy.yaml config --quiet
    docker compose -f compose.deploy.yaml build --pull
+   docker compose -f compose.deploy.yaml up -d --wait postgres
+   docker compose -f compose.deploy.yaml exec postgres sh -c \
+     'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
+   ```
+
+   In that interactive administrator session apply
+   `\i /opt/platform-database/bootstrap.sql`, set distinct migration/runtime
+   secrets with `\password platform_migration` / `\password platform_runtime`,
+   and `ALTER ROLE platform_migration LOGIN;`. Keep runtime NOLOGIN until grants
+   are verified. Exit `psql`, then invoke the independent migration service:
+
+   ```bash
+   (
+     read -r -s -p 'Migration password: ' MIGRATION_DB_PASSWORD; echo
+     export MIGRATION_DB_PASSWORD
+     docker compose -f compose.deploy.yaml run --rm migration
+   )
+   ```
+
+   On **every exit**, through administrator `psql`, disable migration login and
+   terminate its sessions using the
+   [backend procedure](../backend/README.md#2-migrate-independently-then-close-migration-access).
+   On success only, apply `\i /opt/platform-database/runtime-grants.sql`, verify
+   the matrix and `ALTER ROLE platform_runtime LOGIN;`. The runtime password must
+   match `DB_PASSWORD` above. Only then:
+
+   ```sh
    docker compose -f compose.deploy.yaml up -d --wait --wait-timeout 180
    curl --fail --cacert "$TLS_CERT_FILE" https://localhost:8443/
    curl --fail --cacert "$TLS_CERT_FILE" -u "$DEPLOY_OPERATOR_USERNAME" \
@@ -203,8 +238,9 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
   build stages, numeric non-root users, no build tools in runtime images,
   read-only roots, writable size-bounded tmpfs, dropped capabilities,
   `no-new-privileges`, CPU/memory/PID limits and init process signal forwarding.
-  Only nginx can reach the API network; only the backend can reach the database
-  network. Those networks are internal; only the frontend also joins an edge
+  Only nginx can reach the API network; backend and the explicit, short-lived
+  migration service can reach the database network. Those networks are internal;
+  only the frontend also joins an edge
   network so Docker can publish its loopback TLS port. No backend or database
   port is published.
   Docker administrators and the host remain trusted. Compose provides limits,
@@ -212,11 +248,13 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
 - PostgreSQL reuses the existing pinned image and persistent volume definition
   but runs in the **separate** `platform-lab-deploy` project/volume. It needs a
   writable data directory and its standard startup privileges; application
-  container restrictions do not apply to it. The database account still owns
-  migrations and is not a least-privilege runtime database role.
+  container restrictions do not apply to it. Its administrator secret is never
+  passed to the backend. The backend receives only `platform_runtime` credentials;
+  the opt-in migration service receives only `platform_migration` credentials.
 - Startup waits for PostgreSQL and backend readiness before starting nginx.
   Backend readiness checks database access; liveness measures the process.
-  Flyway runs before readiness. nginx's health check measures its own listener,
+  Flyway is disabled at runtime; migrations/grants must already be complete.
+  nginx's health check measures its own listener,
   not end-to-end API availability. Check backend readiness independently:
 
   ```sh
@@ -254,6 +292,10 @@ trusted-loopback HTTP only and is not extended to this TLS endpoint in this slic
 - Stop with `docker compose -f compose.deploy.yaml down`; this retains the
   database volume. `down --volumes` permanently deletes deployment history:
   use only for disposable tests after confirming the project name.
+  Follow [role-split stop/rollback](../backend/README.md#existing-databases-stop-and-rollback):
+  keep API/workers stopped on migration/grant failure, revoke logins **and**
+  sessions through independent administration, and never roll back to privileged
+  runtime credentials.
 
 ### Validation
 
@@ -274,6 +316,13 @@ readiness versus liveness. A successful API probe does not prove kind provisioni
 namespace deletion, backup recovery, certificate renewal or production readiness.
 
 ## Local K3s platform
+
+The role-separation provisioning in this slice is **Compose-only**, not a K3s
+rollout. New backend images disable startup Flyway in every profile. Do not
+promote this image to an unmigrated K3s database or assume the existing shared
+Secret establishes role separation; that transition needs its own reviewed
+credential/migration wiring. The isolated logical-restore fixture below uses
+the independent migration entry point, not an API with startup Flyway enabled.
 
 `kubernetes/` is a Kustomize package for a **separate, single-node K3s**
 installation: one backend API, one frontend, PostgreSQL 18.6 with a 5Gi

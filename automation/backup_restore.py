@@ -73,19 +73,18 @@ def resources(namespace, token, password):
     }
     migrator = {
         "name": "migrator", "image": BACKEND_IMAGE, "imagePullPolicy": "Never",
-        "args": ["--platform.worker.enabled=false", "--server.address=127.0.0.1"],
+        "command": ["sh", "-c",
+                    "java -Dloader.main=io.github.dcfaight.platformlab.DatabaseMigration "
+                    "-cp /app/app.jar org.springframework.boot.loader.launch.PropertiesLauncher "
+                    "&& touch /tmp/migrated && sleep 900"],
         "env": [{"name": key, "value": value} for key, value in {
-            "SPRING_PROFILES_ACTIVE": "deploy",
-            "DB_URL": "jdbc:postgresql://127.0.0.1:5432/drill",
-            "DB_USERNAME": "drill", "DB_PASSWORD": password,
-            "SPRING_DATASOURCE_HIKARI_INITIALIZATION_FAIL_TIMEOUT": "60000",
-            "PLATFORM_WORKER_ENABLED": "false", "WORKER_ENABLED": "false",
+            "MIGRATION_DB_URL": "jdbc:postgresql://127.0.0.1:5432/drill",
+            "MIGRATION_DB_USERNAME": "drill", "MIGRATION_DB_PASSWORD": password,
         }.items()],
         "resources": {"requests": {"cpu": "100m", "memory": "256Mi"},
                       "limits": {"cpu": "1", "memory": "512Mi"}},
         "readinessProbe": {
-            "exec": {"command": ["curl", "--fail", "--silent", "--max-time", "2",
-                                 "http://127.0.0.1:8080/actuator/health/readiness"]},
+            "exec": {"command": ["test", "-f", "/tmp/migrated"]},
             "periodSeconds": 2, "timeoutSeconds": 3,
         },
     }

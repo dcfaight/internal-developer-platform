@@ -28,8 +28,8 @@ services:
     environment:
       SPRING_PROFILES_ACTIVE: deploy
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-platform_lab}
-      DB_USERNAME: ${POSTGRES_USER:-platform_lab}
-      DB_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      DB_USERNAME: platform_runtime
+      DB_PASSWORD: ${DB_PASSWORD:?Set runtime-only DB_PASSWORD}
       PLATFORM_SECURITY_USERS_0_USERNAME: ${DEPLOY_OPERATOR_USERNAME:?Set DEPLOY_OPERATOR_USERNAME}
       PLATFORM_SECURITY_USERS_0_PASSWORDHASH: ${DEPLOY_OPERATOR_PASSWORD_HASH:?Set DEPLOY_OPERATOR_PASSWORD_HASH}
       PLATFORM_SECURITY_USERS_0_ROLES: OPERATOR
@@ -37,6 +37,25 @@ services:
       postgres:
         condition: service_healthy
     networks: [api, database]
+
+  migration:
+    profiles: [migration]
+    build: ./backend
+    restart: "no"
+    entrypoint:
+      - java
+      - -Dloader.main=io.github.dcfaight.platformlab.DatabaseMigration
+      - -cp
+      - /app/app.jar
+      - org.springframework.boot.loader.launch.PropertiesLauncher
+    environment:
+      MIGRATION_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-platform_lab}
+      MIGRATION_DB_USERNAME: platform_migration
+      MIGRATION_DB_PASSWORD: ${MIGRATION_DB_PASSWORD:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks: [database]
 
   frontend:
     build: ./frontend

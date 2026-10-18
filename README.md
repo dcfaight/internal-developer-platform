@@ -542,25 +542,13 @@ Docker with Compose is required for local PostgreSQL; backend integration tests
 also require Docker (Testcontainers `postgres:18.6`, no skipping).
 kind and kubectl are needed only for the optional local cluster.
 
-From the repository root, prepare local PostgreSQL:
-
-```sh
-cp .env.example .env
-# Edit .env and set POSTGRES_PASSWORD to a nonempty local-only value.
-docker compose up -d --wait postgres
-
-# Spring Boot does not automatically load Compose's .env.
-# Source only your trusted local file: this executes shell code.
-set -a
-. ./.env
-set +a
-export DB_URL="jdbc:postgresql://127.0.0.1:${POSTGRES_PORT}/${POSTGRES_DB}"
-export DB_USERNAME="$POSTGRES_USER"
-export DB_PASSWORD="$POSTGRES_PASSWORD"
-```
-
-Run the backend in that same shell (or configure the same `DB_*` variables in
-IntelliJ). Run the frontend in a separate terminal:
+First follow [backend local setup](backend/README.md#run-locally): bootstrap a
+fresh disposable target, run Flyway independently, close migration access, then
+start the backend with **runtime-only** `DB_*` credentials. Do not export the
+Compose administrator environment to the backend or worker. Existing volumes
+require the documented stop/transition review, not automatic reownership.
+After that setup, run the backend in its runtime-only shell (or configure only
+runtime `DB_*` values in IntelliJ). Run the frontend in a separate terminal:
 
 ```sh
 cd backend
@@ -597,9 +585,9 @@ retried with their stored key and payload in the same tab session; this does not
 cancel server work. This is a bounded portfolio implementation, not production
 software; see the [current roadmap](docs/operating-model-and-sequence.md) and
 [frontend guide](frontend/README.md) for scope and limitations.
-The backend listens on http://127.0.0.1:8080 and applies Flyway migrations on
-startup. `DB_URL` defaults to
-`jdbc:postgresql://127.0.0.1:5432/platform_lab`, `DB_USERNAME` to `platform_lab`,
+The backend listens on http://127.0.0.1:8080 with startup Flyway disabled.
+`DB_URL` defaults to
+`jdbc:postgresql://127.0.0.1:5432/platform_lab`, `DB_USERNAME` to `platform_runtime`,
 and `DB_PASSWORD` is required with no default.
 See [backend/README.md](backend/README.md#manual-api-checks) for copyable curl
 checks covering creation, normalized replay, conflicts, list/detail reads,

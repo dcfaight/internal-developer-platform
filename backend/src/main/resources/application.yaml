@@ -3,8 +3,10 @@ spring:
     name: developer-platform-lab
   datasource:
     url: ${DB_URL:jdbc:postgresql://127.0.0.1:5432/platform_lab}
-    username: ${DB_USERNAME:platform_lab}
+    username: ${DB_USERNAME:platform_runtime}
     password: ${DB_PASSWORD}
+  flyway:
+    enabled: false
   jackson:
     mapper:
       allow-coercion-of-scalars: false

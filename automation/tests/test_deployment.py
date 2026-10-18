@@ -20,12 +20,13 @@ ROOT = Path(__file__).resolve().parents[2]
 class DeploymentConfigurationTests(unittest.TestCase):
     def test_configuration_fails_closed_and_keeps_internal_ports_private(self):
         environment = {key: value for key, value in os.environ.items()
-                       if key not in {"POSTGRES_PASSWORD", "DEPLOY_OPERATOR_USERNAME",
+                       if key not in {"POSTGRES_PASSWORD", "DB_PASSWORD", "DEPLOY_OPERATOR_USERNAME",
                                       "DEPLOY_OPERATOR_PASSWORD_HASH", "TLS_CERT_FILE", "TLS_KEY_FILE"}}
         command = ["docker", "compose", "--env-file", "/dev/null",
                    "--file", str(ROOT / "compose.deploy.yaml"), "config", "--format", "json"]
         values = {
             "POSTGRES_PASSWORD": "configuration-test-only",
+            "DB_PASSWORD": "runtime-configuration-test-only",
             "DEPLOY_OPERATOR_USERNAME": "config-test",
             "DEPLOY_OPERATOR_PASSWORD_HASH": "configuration-test-only",
             "TLS_CERT_FILE": "/tmp/config-test.crt",
@@ -51,6 +52,11 @@ class DeploymentConfigurationTests(unittest.TestCase):
         self.assertEqual({"api", "edge"}, set(services["frontend"]["networks"]))
         self.assertNotIn("edge", services["backend"]["networks"])
         self.assertNotIn("edge", services["postgres"]["networks"])
+        runtime = services["backend"]["environment"]
+        self.assertEqual("platform_runtime", runtime["DB_USERNAME"])
+        self.assertEqual(values["DB_PASSWORD"], runtime["DB_PASSWORD"])
+        self.assertNotIn("POSTGRES_PASSWORD", runtime)
+        self.assertNotIn("MIGRATION_DB_PASSWORD", runtime)
 
 
 @unittest.skipUnless(os.environ.get("PLATFORM_DEPLOY_TEST") == "true",
@@ -79,6 +85,8 @@ class DeploymentTests(unittest.TestCase):
         cls.environment = {
             **os.environ,
             "POSTGRES_PASSWORD": secrets.token_hex(24),
+            "DB_PASSWORD": secrets.token_hex(24),
+            "MIGRATION_DB_PASSWORD": secrets.token_hex(24),
             "DEPLOY_OPERATOR_USERNAME": "deployment-test",
             "DEPLOY_OPERATOR_PASSWORD_HASH": password_hash,
             "TLS_CERT_FILE": str(certificate),
@@ -90,12 +98,36 @@ class DeploymentTests(unittest.TestCase):
         cls.compose("config", "--quiet")
         cls.compose("build", timeout=900)
         try:
+            cls.compose("up", "-d", "--wait", "postgres", timeout=120)
+            cls.sql((ROOT / "backend/database/bootstrap.sql").read_text())
+            # Generated values travel over stdin, never argv or Compose logs.
+            cls.sql(
+                "ALTER ROLE platform_migration LOGIN PASSWORD '"
+                + cls.environment["MIGRATION_DB_PASSWORD"] + "';\n"
+                + "ALTER ROLE platform_runtime LOGIN PASSWORD '"
+                + cls.environment["DB_PASSWORD"] + "';\n")
+            cls.compose("run", "--rm", "migration", timeout=120)
+            cls.sql((ROOT / "backend/database/runtime-grants.sql").read_text())
+            cls.sql("ALTER ROLE platform_migration NOLOGIN;\n"
+                    "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                    "WHERE usename = 'platform_migration';\n")
             cls.compose("up", "-d", "--wait", "--wait-timeout", "180", timeout=240)
         except RuntimeError:
             print(cls.compose("logs", "--no-color", "--tail", "100"))
             raise
         cls.tls = ssl.create_default_context(cafile=str(certificate))
         cls.url = "https://localhost:" + cls.environment["HTTPS_PORT"]
+
+    @classmethod
+    def sql(cls, statement):
+        result = subprocess.run([
+            "docker", "compose", "--project-name", cls.project,
+            "--file", str(ROOT / "compose.deploy.yaml"), "exec", "-T", "postgres",
+            "sh", "-c", 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"',
+        ], cwd=ROOT, env=cls.environment, input=statement, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+        if result.returncode:
+            raise RuntimeError("Disposable database setup failed (details suppressed).")
 
     @classmethod
     def compose(cls, *arguments, timeout=60):
