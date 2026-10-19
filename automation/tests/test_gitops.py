@@ -75,7 +75,13 @@ class GitOpsConfigurationTests(unittest.TestCase):
         self.assertIn("resource.respectRBAC: strict", text)
 
     def test_catalog_and_selected_images_are_immutable(self):
-        catalog = json.loads((GITOPS / "local-k3s/releases.json").read_text())
+        def unique_keys(pairs):
+            keys = [key for key, _ in pairs]
+            self.assertEqual(len(keys), len(set(keys)), "Duplicate release catalog keys")
+            return dict(pairs)
+
+        catalog = json.loads((GITOPS / "local-k3s/releases.json").read_text(),
+                             object_pairs_hook=unique_keys)
         self.assertEqual("linux/amd64", catalog["platform"])
         self.assertEqual(["gitops-a", "gitops-b"],
                          [release["releaseId"] for release in catalog["frontend"]])
@@ -93,10 +99,10 @@ class GitOpsConfigurationTests(unittest.TestCase):
         backend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-backend.*)$", rendered)
         current_backend = catalog["currentBackend"]
         self.assertEqual({"releaseId", "image"}, set(current_backend))
-        self.assertEqual("k3s-v2", current_backend["releaseId"])
+        self.assertEqual("pr53-ca2e5c9", current_backend["releaseId"])
         self.assertEqual(
             "docker.io/library/platform-lab-backend@sha256:"
-            "c7e66463b7ea67cbdc06e225f39482b7b43b209f37ecf12125e9cc32ad1aa10f",
+            "8e601480ced03a127d658006cccdffce6c46817463f799b67de98d64661b2811",
             current_backend["image"])
         self.assertEqual([current_backend["image"]], backend_images)
         self.assertNotIn("image: " + catalog["backend"]["image"], rendered)

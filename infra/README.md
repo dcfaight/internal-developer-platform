@@ -1138,10 +1138,10 @@ upstream image registries; do not disable certificate verification.
 `infra/gitops/local-k3s/releases.json` retains historical `backend` and `frontend`
 archive records with source commit, platform, manifest/configuration digests, and
 archive SHA-256. `currentBackend` and `currentFrontend` identify the selected images
-separately. Backend `k3s-v2` tracks the user's locally imported image by manifest
+separately. Backend `pr53-ca2e5c9` tracks the recovered, locally imported image by manifest
 digest; registry publication, source commit, configuration digest, archive checksum,
 and the live runtime imageID-to-manifest relationship have not been independently
-verified. The historical backend archive metadata does not describe `k3s-v2`.
+verified. The historical backend archive metadata does not describe `pr53-ca2e5c9`.
 The target selects the backend and baseline frontend by **manifest digest**, not
 a reusable tag. Both application pull policies remain `Never`.
 The two frontend variants differ only in public `/release.json`; both use the
@@ -1169,6 +1169,34 @@ entry with `sudo k3s ctr images tag EXISTING_REFERENCE CATALOG_IMAGE_REFERENCE`
 without changing its digest. Verify the manifest/config digest before tagging.
 Import both frontend versions before the first deployment; do not rely on image
 cache retention or assume Docker's image store is K3s's store.
+
+Before merging the recovered backend pin, run the offline contract checks and
+render the target (set `ROOT` to the absolute checkout path):
+
+```sh
+python3 -m unittest discover -s "$ROOT/automation/tests" -p test_gitops.py -v
+kubectl kustomize "$ROOT/infra/gitops/local-k3s"
+```
+
+On every K3s node eligible to run the backend, verify the recovered tag's manifest
+digest and the **exact digest-qualified reference**, without syncing or restarting:
+
+```sh
+BACKEND_DIGEST=sha256:8e601480ced03a127d658006cccdffce6c46817463f799b67de98d64661b2811
+BACKEND_IMAGE="docker.io/library/platform-lab-backend@$BACKEND_DIGEST"
+sudo k3s ctr images ls | grep -F 'docker.io/library/platform-lab-backend'
+sudo k3s ctr content get "$BACKEND_DIGEST" | sha256sum
+sudo k3s crictl inspecti "$BACKEND_IMAGE"
+```
+
+Require both `:pr53-ca2e5c9` and `$BACKEND_IMAGE` to target `$BACKEND_DIGEST`,
+the content checksum to equal its hex value, and CRI inspection to resolve the
+exact reference with `linux/amd64` image configuration. The old `c7e66463…` digest
+reference is a different build, not an alias for the recovered image. If the new
+exact reference is absent, stop: an operator must verify the tag's target digest
+and add the alias using the procedure above, then repeat these checks before
+merge/sync. Offline checks cannot establish node-local availability with pull
+policy `Never`; no registry publication or live K3s verification is implied.
 
 Archives are not committed or published by CI. The catalog identifies artifacts,
 but a fresh node cannot deploy without an operator supplying them. Rebuilding

@@ -6,7 +6,7 @@ resources:
 images:
   - name: platform-lab-backend
     newName: docker.io/library/platform-lab-backend
-    digest: sha256:c7e66463b7ea67cbdc06e225f39482b7b43b209f37ecf12125e9cc32ad1aa10f
+    digest: sha256:8e601480ced03a127d658006cccdffce6c46817463f799b67de98d64661b2811
   - name: platform-lab-frontend
     newName: docker.io/library/platform-lab-frontend
     digest: sha256:9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06
