@@ -113,14 +113,14 @@ class GitOpsConfigurationTests(unittest.TestCase):
         frontend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-frontend.*)$", rendered)
         self.assertEqual(1, len(frontend_images))
         current = catalog["currentFrontend"]
-        baseline = catalog["frontend"][0]
-        self.assertEqual("gitops-a", current["releaseId"])
-        self.assertEqual(baseline["releaseId"], current["releaseId"])
-        self.assertEqual(baseline["sourceRevision"], current["sourceRevision"])
-        self.assertEqual(baseline["image"], current["image"])
+        selected = catalog["frontend"][1]
+        self.assertEqual("gitops-b", current["releaseId"])
+        self.assertEqual(selected["releaseId"], current["releaseId"])
+        self.assertEqual(selected["sourceRevision"], current["sourceRevision"])
+        self.assertEqual(selected["image"], current["image"])
         self.assertEqual(
             "docker.io/library/platform-lab-frontend@sha256:"
-            "a9fb70c3d9b4770ff6863411d1d6d0418a98a9da85f59b10e8d5541cabac82f9",
+            "3816369fcac1a70f1e6556c7b9dbaa7f8a90f0375d2f6a6ce54c509074d34bc6",
             current["image"])
         self.assertEqual(current["image"], frontend_images[0])
 
