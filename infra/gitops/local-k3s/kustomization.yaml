@@ -9,7 +9,7 @@ images:
     digest: sha256:8e601480ced03a127d658006cccdffce6c46817463f799b67de98d64661b2811
   - name: platform-lab-frontend
     newName: docker.io/library/platform-lab-frontend
-    digest: sha256:9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06
+    digest: sha256:a9fb70c3d9b4770ff6863411d1d6d0418a98a9da85f59b10e8d5541cabac82f9
 patches:
   - patch: |
       apiVersion: v1

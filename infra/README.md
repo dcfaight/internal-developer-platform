@@ -1116,7 +1116,7 @@ upstream image registries; do not disable certificate verification.
    frontend TLS port-forwarding as above.
 
 3. Review the rendered bootstrap and target, then apply bootstrap **only after**
-   secrets and artifacts exist:
+   secrets and all required artifacts exist:
 
    ```sh
    kubectl kustomize "$ROOT/infra/gitops/bootstrap"
@@ -1138,20 +1138,25 @@ upstream image registries; do not disable certificate verification.
 `infra/gitops/local-k3s/releases.json` retains historical `backend` and `frontend`
 archive records with source commit, platform, manifest/configuration digests, and
 archive SHA-256. `currentBackend` and `currentFrontend` identify the selected images
-separately. Backend `pr53-ca2e5c9` tracks the recovered, locally imported image by manifest
-digest; registry publication, source commit, configuration digest, archive checksum,
-and the live runtime imageID-to-manifest relationship have not been independently
-verified. The historical backend archive metadata does not describe `pr53-ca2e5c9`.
-The target selects the backend and baseline frontend by **manifest digest**, not
-a reusable tag. Both application pull policies remain `Never`.
-The two frontend variants differ only in public `/release.json`; both use the
-same source commit and are compatible with the same backend/schema. This is a
-controlled release/rollback fixture, not a claim of two independent product releases.
+separately. `currentFrontend` names the committed baseline (A); it is not a phase
+tracker. During the drill, the catalog remains unchanged while only the frontend
+digest in `kustomization.yaml` moves to B and back to A in a new revert commit.
+Backend `pr53-ca2e5c9` tracks the recovered image by manifest digest; registry
+publication, source commit, configuration digest, archive checksum, and the live
+runtime imageID-to-manifest relationship have not been independently verified. The
+historical backend archive metadata does not describe `pr53-ca2e5c9`. The target
+selects the backend and baseline frontend by **manifest digest**, not a reusable tag.
+Both application pull policies remain `Never`.
+The two frontend variants differ only in public `/release.json`; both use source
+revision `ca2e5c9ceb563271aba2e034d23d0f696eaeed64` and are compatible with the same
+backend/schema. The backend historical record retains its independent source
+revision. This is a controlled release/rollback fixture, not a claim of two
+independent product releases.
 
-Retain **both frontend archives and the fixed backend archive** outside Git in
-access-controlled artifact storage for the entire rollback window. Copy the
-recorded archives from the release producer, verify their SHA-256 against the
-catalog, and import on the K3s node:
+For an actual live drill, retain **both frontend archives and the fixed backend
+archive** outside Git in access-controlled artifact storage for the entire rollback
+window. Copy the recorded archives from the release producer, verify their SHA-256
+against the catalog, and import on the K3s node:
 
 ```sh
 # ARTIFACTS is an absolute directory outside the checkout containing the archives.
@@ -1236,9 +1241,10 @@ without disabling TLS verification or copying a private key into an image.
 
 ### Git-driven frontend upgrade and rollback drill
 
-Start with the catalog's baseline frontend selected and Argo CD `Synced`,
-`Healthy`, and latest operation `Succeeded`. Do not change backend, PostgreSQL,
-configuration, secrets, PVC, or Flyway during this drill.
+Preparing/merging baseline A is only a prerequisite, not execution or acceptance
+of this drill. Start the actual drill with the catalog's baseline frontend selected
+and Argo CD `Synced`, `Healthy`, and latest operation `Succeeded`. Do not change
+backend, PostgreSQL, configuration, secrets, PVC, or Flyway during this drill.
 
 Before starting, complete bootstrap in the order above, verify the controller
 and repo-server rollouts, and verify/import all three exact catalog artifacts.
@@ -1343,28 +1349,28 @@ and server permission boundaries; the operator needs impersonation permission.
 **2026-10-17:** a disposable K3s v1.35.1+k3s1 node was started for validation,
 and the pinned CRDs and namespace-scoped Argo CD resources applied successfully.
 Controller startup was blocked by image downloads from `cdn01.quay.io`
-(`ErrImagePull`, DNS failure). **No successful Git synchronization,
-frontend upgrade/revert, or persistence proof is claimed.** A target-cluster
-operator must complete the drill and retain its evidence before marking the
-roadmap acceptance boundary complete. Registry publication, multi-node artifact
-distribution, backend/schema rollback, backup recovery and production readiness
-remain excluded.
-Both frontend OCI archives and the fixed backend archive were successfully
-built from source revision `2c2e05c7765a7481883936af6a8700028c085cea`,
-using the environment's trusted proxy CA via BuildKit secrets. Archive hashes,
-manifest/config digests and frontend release identities were verified against
-the catalog. They are retained at `/tmp/platform-frontend-a.tar`,
-`/tmp/platform-frontend-b.tar` and `/tmp/platform-backend.tar` in this task
-environment only: **this is not durable artifact publication**. Copy them to
-operator-managed storage before this environment expires, or build and review
-a new artifact set and update the catalog/target. Do not interpret the committed
-digests as downloadable registry artifacts.
-The three exact catalog image references were also imported and verified in the
-disposable node's containerd store. For the containerized K3s validation node,
-the CLI was `ctr --address /run/k3s/containerd/containerd.sock --namespace k8s.io`
-instead of the host installation's `k3s ctr` wrapper.
+(`ErrImagePull`, DNS failure). This remains a historical blocker; it is not evidence
+that the current operator cluster has the same state.
 
-Additional validation for this increment:
+**2026-10-20 baseline-A preparation:** the catalog records new frontend A and B
+artifacts built from clean source revision
+`ca2e5c9ceb563271aba2e034d23d0f696eaeed64`. Their identities and archive checksums
+are supplied in `releases.json`. The operator reports retaining the two archives
+outside the checkout and importing both exact digest references into local K3s;
+this environment cannot independently inspect those files or the operator's node.
+No retained archive for the recovered backend image was found, and the historical
+backend archive metadata does not describe `pr53-ca2e5c9`. The fixed backend archive
+is still a prerequisite for the documented three-artifact live preflight; do not
+rebuild or substitute it as part of baseline-A preparation.
+
+Baseline-A preparation is not a successful Git synchronization, A-to-B-to-A
+upgrade/revert, or persistence proof. **GITOPS-01 remains open.** Do not update the
+roadmap gate until the actual drill completes and its evidence is durably retained.
+Registry publication, multi-node artifact distribution, backend/schema rollback,
+backup recovery and production readiness remain excluded.
+
+Historical validation results below are from the preceding increment and do not
+validate this baseline-A preparation:
 
 - Full automation discovery with `PLATFORM_GITOPS_ARTIFACTS=/tmp`: **94 tests,
   no failures, nine opt-in tests skipped**.
