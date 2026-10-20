@@ -86,7 +86,11 @@ class GitOpsConfigurationTests(unittest.TestCase):
         self.assertEqual(["gitops-a", "gitops-b"],
                          [release["releaseId"] for release in catalog["frontend"]])
         releases = [catalog["backend"], *catalog["frontend"]]
-        self.assertEqual(1, len({release["sourceRevision"] for release in releases}))
+        self.assertEqual(1, len({release["sourceRevision"] for release in catalog["frontend"]}))
+        self.assertNotEqual(catalog["backend"]["sourceRevision"],
+                            catalog["frontend"][0]["sourceRevision"])
+        self.assertEqual("ca2e5c9ceb563271aba2e034d23d0f696eaeed64",
+                         catalog["frontend"][0]["sourceRevision"])
         self.assertEqual(3, len({release["image"] for release in releases}))
         for release in releases:
             self.assertRegex(release["sourceRevision"], r"^[0-9a-f]{40}$")
@@ -109,11 +113,14 @@ class GitOpsConfigurationTests(unittest.TestCase):
         frontend_images = re.findall(r"(?m)^\s+(?:- )?image: (.*platform-lab-frontend.*)$", rendered)
         self.assertEqual(1, len(frontend_images))
         current = catalog["currentFrontend"]
-        self.assertEqual("k3s-v2", current["releaseId"])
-        self.assertEqual("0b89a5a64e3893d671280b85eb05349b9c3dd5bd", current["sourceRevision"])
+        baseline = catalog["frontend"][0]
+        self.assertEqual("gitops-a", current["releaseId"])
+        self.assertEqual(baseline["releaseId"], current["releaseId"])
+        self.assertEqual(baseline["sourceRevision"], current["sourceRevision"])
+        self.assertEqual(baseline["image"], current["image"])
         self.assertEqual(
             "docker.io/library/platform-lab-frontend@sha256:"
-            "9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06",
+            "a9fb70c3d9b4770ff6863411d1d6d0418a98a9da85f59b10e8d5541cabac82f9",
             current["image"])
         self.assertEqual(current["image"], frontend_images[0])
 
@@ -314,6 +321,8 @@ class GitOpsRollbackTests(unittest.TestCase):
 
     def test_git_upgrade_and_revert_preserve_backend_and_history(self):
         previous, candidate = self.releases["frontend"]
+        self.assertEqual("gitops-a", self.releases["currentFrontend"]["releaseId"])
+        self.assertEqual("gitops-b", candidate["releaseId"])
         baseline = self.wait_for_release(previous)
         preserved = self.persistence()
         records = [{"phase": "baseline", **baseline}]

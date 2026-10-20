@@ -12,26 +12,26 @@
     "image": "docker.io/library/platform-lab-backend@sha256:8e601480ced03a127d658006cccdffce6c46817463f799b67de98d64661b2811"
   },
   "currentFrontend": {
-    "releaseId": "k3s-v2",
-    "sourceRevision": "0b89a5a64e3893d671280b85eb05349b9c3dd5bd",
-    "image": "docker.io/library/platform-lab-frontend@sha256:9f6ae09bcc76b786ced130ef2e11d11976fe4e97bd62dfd99934dfdc8ee6bb06"
+    "releaseId": "gitops-a",
+    "sourceRevision": "ca2e5c9ceb563271aba2e034d23d0f696eaeed64",
+    "image": "docker.io/library/platform-lab-frontend@sha256:a9fb70c3d9b4770ff6863411d1d6d0418a98a9da85f59b10e8d5541cabac82f9"
   },
   "frontend": [
     {
       "releaseId": "gitops-a",
-      "sourceRevision": "2c2e05c7765a7481883936af6a8700028c085cea",
-      "image": "docker.io/library/platform-lab-frontend@sha256:26df98226d67ae71a5d3623abeecb43fefd636c4fe5569ed00fe95d880861565",
-      "configDigest": "sha256:1bbf4de1e329f005ca01e0d8a7185e2b9c1c30e8828b90433de1cab5746ff322",
+      "sourceRevision": "ca2e5c9ceb563271aba2e034d23d0f696eaeed64",
+      "image": "docker.io/library/platform-lab-frontend@sha256:a9fb70c3d9b4770ff6863411d1d6d0418a98a9da85f59b10e8d5541cabac82f9",
+      "configDigest": "sha256:478e19fb4e2636e931856e20f7fe8b75caf6c9858e9452993e8fb81f1966dd70",
       "archive": "platform-frontend-a.tar",
-      "archiveSHA256": "a69359d82f964a63c369deccace7cebba43df80b64f8b1b40c807633669c11f3"
+      "archiveSHA256": "75f59813c93ce4aa327e75975c7ba2f7a4daca081b9e5f4f13728213d72ca1ec"
     },
     {
       "releaseId": "gitops-b",
-      "sourceRevision": "2c2e05c7765a7481883936af6a8700028c085cea",
-      "image": "docker.io/library/platform-lab-frontend@sha256:1d24f1236e50db56127343c8818632834960c2f43026c34bcf211f891290b870",
-      "configDigest": "sha256:6195178b729bc5e898fbcee889ad0a87e6cfd08ee35ff27303d9e519ec0c4816",
+      "sourceRevision": "ca2e5c9ceb563271aba2e034d23d0f696eaeed64",
+      "image": "docker.io/library/platform-lab-frontend@sha256:3816369fcac1a70f1e6556c7b9dbaa7f8a90f0375d2f6a6ce54c509074d34bc6",
+      "configDigest": "sha256:a230ef18c5f44e6d4f42103e19f59af5b861ae07f07116e063b1ed172b92d748",
       "archive": "platform-frontend-b.tar",
-      "archiveSHA256": "a03a52fca62a0fae4eaeed3886b6269f1dc6c3a867e5591f4686ded74b51040f"
+      "archiveSHA256": "6aad586c952d1d4453e8371e603878773000a017b4ea2ba52cd9ab1c46ace570"
     }
   ]
 }
